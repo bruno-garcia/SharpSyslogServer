@@ -1,0 +1,4 @@
+.vs
+artifacts
+*.user
+project.lock.json
