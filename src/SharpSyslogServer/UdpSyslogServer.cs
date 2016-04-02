@@ -1,37 +1,56 @@
 ﻿using System;
-using System.Net.Sockets;
 using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
+using SharpSyslogServer.Networking;
 
 namespace SharpSyslogServer
 {
     public sealed class UdpSyslogServer : ISyslogServer
     {
         private readonly ISyslogMessageHandler _syslogMessageHandler;
-        private readonly Func<UdpClient> _updClientFactory;
+        private readonly Func<IUdpClient> _updClientFactory;
+        private readonly Func<DateTime> _nowFunc;
 
-        public UdpSyslogServer(ISyslogMessageHandler syslogMessageHandler, Func<UdpClient> updClientFactory = null)
+        public UdpSyslogServer(ISyslogMessageHandler syslogMessageHandler)
+            : this(syslogMessageHandler, () => new UdpClientAdapter(514), () => DateTime.UtcNow)
+        { }
+
+        internal UdpSyslogServer(
+            ISyslogMessageHandler syslogMessageHandler,
+            Func<IUdpClient> updClientFactory,
+            Func<DateTime> nowFunc)
         {
             if (syslogMessageHandler == null) throw new ArgumentNullException(nameof(syslogMessageHandler));
+            if (updClientFactory == null) throw new ArgumentNullException(nameof(updClientFactory));
+            if (nowFunc == null) throw new ArgumentNullException(nameof(nowFunc));
             _syslogMessageHandler = syslogMessageHandler;
-            _updClientFactory = updClientFactory ?? (() => new UdpClient(514));
+            _updClientFactory = updClientFactory;
+            _nowFunc = nowFunc;
         }
 
-        public async Task Start(CancellationToken token)
+        /// <summary>
+        /// Starts receiving syslog messages
+        /// </summary>
+        /// <param name="token">CancellationToken to stop the server</param>
+        /// <returns></returns>
+        public Task Start(CancellationToken token)
         {
-            using (var udpClient = _updClientFactory())
+            return Task.Run(async () =>
             {
-                while (true)
+                using (var udpClient = _updClientFactory())
                 {
-                    token.ThrowIfCancellationRequested();
+                    while (true)
+                    {
+                        token.ThrowIfCancellationRequested();
 
-                    var received = await udpClient.ReceiveAsync().WithCancellation(token).ConfigureAwait(false);
-                    var log = Encoding.UTF8.GetString(received.Buffer, 0, received.Buffer.Length);
+                        var received = await udpClient.ReceiveAsync().WithCancellation(token).ConfigureAwait(false);
+                        var log = Encoding.UTF8.GetString(received.Buffer, 0, received.Buffer.Length);
 
-                    _syslogMessageHandler.Handle(new SyslogMessage(received.RemoteEndPoint, log, DateTime.UtcNow));
+                        _syslogMessageHandler.Handle(new SyslogMessage(received.RemoteEndPoint, log, _nowFunc()));
+                    }
                 }
-            }
+            }, token);
         }
     }
 }
