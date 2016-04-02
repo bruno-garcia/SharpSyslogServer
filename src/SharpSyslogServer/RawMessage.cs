@@ -3,18 +3,18 @@ using System.Net;
 
 namespace SharpSyslogServer
 {
-    internal sealed class SyslogMessage : ISyslogMessage
+    internal struct RawMessage : IRawMessage
     {
         public IPEndPoint RemoteEndPoint { get; }
-        public string Message { get; }
+        public byte[] Payload { get; }
         public DateTime ReceivedAt { get; }
 
-        public SyslogMessage(IPEndPoint remoteEndPoint, string message, DateTime receivedAt)
+        public RawMessage(IPEndPoint remoteEndPoint, byte[] payload, DateTime receivedAt)
         {
             if (remoteEndPoint == null) throw new ArgumentNullException(nameof(remoteEndPoint));
-            if (message == null) throw new ArgumentNullException(nameof(message));
+            if (payload == null) throw new ArgumentNullException(nameof(payload));
             RemoteEndPoint = remoteEndPoint;
-            Message = message;
+            Payload = payload;
             ReceivedAt = receivedAt;
         }
     }

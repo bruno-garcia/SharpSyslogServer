@@ -11,7 +11,7 @@ namespace SharpSyslogServer.Console
         public static int Main(string[] args)
         {
             var source = new CancellationTokenSource();
-            var sysLog = new UdpSyslogServer(new ConsoleSyslogMessageHandler());
+            var sysLog = new UdpSyslogServer(new ConsoleRawMessageHandler());
 
             var exitKeyTask = PressEscToExit();
 

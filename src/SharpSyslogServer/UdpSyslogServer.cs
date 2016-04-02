@@ -1,5 +1,4 @@
 ﻿using System;
-using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
 using SharpSyslogServer.Networking;
@@ -8,23 +7,23 @@ namespace SharpSyslogServer
 {
     public sealed class UdpSyslogServer : ISyslogServer
     {
-        private readonly ISyslogMessageHandler _syslogMessageHandler;
+        private readonly IRawMessageHandler _rawMessageHandler;
         private readonly Func<IUdpClient> _updClientFactory;
         private readonly Func<DateTime> _nowFunc;
 
-        public UdpSyslogServer(ISyslogMessageHandler syslogMessageHandler)
-            : this(syslogMessageHandler, () => new UdpClientAdapter(514), () => DateTime.UtcNow)
+        public UdpSyslogServer(IRawMessageHandler rawMessageHandler)
+            : this(rawMessageHandler, () => new UdpClientAdapter(514), () => DateTime.UtcNow)
         { }
 
         internal UdpSyslogServer(
-            ISyslogMessageHandler syslogMessageHandler,
+            IRawMessageHandler rawMessageHandler,
             Func<IUdpClient> updClientFactory,
             Func<DateTime> nowFunc)
         {
-            if (syslogMessageHandler == null) throw new ArgumentNullException(nameof(syslogMessageHandler));
+            if (rawMessageHandler == null) throw new ArgumentNullException(nameof(rawMessageHandler));
             if (updClientFactory == null) throw new ArgumentNullException(nameof(updClientFactory));
             if (nowFunc == null) throw new ArgumentNullException(nameof(nowFunc));
-            _syslogMessageHandler = syslogMessageHandler;
+            _rawMessageHandler = rawMessageHandler;
             _updClientFactory = updClientFactory;
             _nowFunc = nowFunc;
         }
@@ -40,15 +39,18 @@ namespace SharpSyslogServer
             {
                 using (var udpClient = _updClientFactory())
                 {
-                    while (true)
+                    do
                     {
                         token.ThrowIfCancellationRequested();
 
-                        var received = await udpClient.ReceiveAsync().WithCancellation(token).ConfigureAwait(false);
-                        var log = Encoding.UTF8.GetString(received.Buffer, 0, received.Buffer.Length);
+                        var received = await udpClient.ReceiveAsync()
+                            .WithCancellation(token)
+                            .ConfigureAwait(false);
 
-                        _syslogMessageHandler.Handle(new SyslogMessage(received.RemoteEndPoint, log, _nowFunc()));
-                    }
+                        _rawMessageHandler.Handle(
+                            new RawMessage(received.RemoteEndPoint, received.Buffer, _nowFunc()));
+
+                    } while (!token.IsCancellationRequested);
                 }
             }, token);
         }

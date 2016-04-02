@@ -16,16 +16,16 @@ namespace SharpSyslogServerTests
     {
         private class Fixture
         {
-            public Mock<ISyslogMessageHandler> SyslogMessageHandlerMock { get; set; } = new Mock<ISyslogMessageHandler>();
+            public Mock<IRawMessageHandler> SyslogMessageHandlerMock { get; set; } = new Mock<IRawMessageHandler>();
             public Mock<IUdpClient> UpdClient { get; } = new Mock<IUdpClient>();
             public Mock<Func<IUdpClient>> UpdClientFactoryMock { get; set; } = new Mock<Func<IUdpClient>>();
             public Mock<Func<DateTime>> DateTimeFuncMock { get; set; } = new Mock<Func<DateTime>>();
-            public UdpReceiveResult UdpReceiveResult { get; set; } 
-            public string Message { get; set; } = "A message";
+            public UdpReceiveResult UdpReceiveResult { get; }
+            public byte[] Payload { get; } = Encoding.UTF8.GetBytes("A message");
 
             public Fixture()
             {
-                UdpReceiveResult = new UdpReceiveResult(Encoding.UTF8.GetBytes(Message), new IPEndPoint(IPAddress.Loopback, 0));
+                UdpReceiveResult = new UdpReceiveResult(Payload, new IPEndPoint(IPAddress.Loopback, 0));
 
                 UpdClientFactoryMock.Setup(f => f()).Returns(UpdClient.Object);
                 DateTimeFuncMock.Setup(d => d()).Returns(() => DateTime.UtcNow);
@@ -49,10 +49,10 @@ namespace SharpSyslogServerTests
 
             var handleCalledEvent = new ManualResetEventSlim();
             _fixture.SyslogMessageHandlerMock
-                .Setup(h => h.Handle(It.Is<ISyslogMessage>(m => m.Message == _fixture.Message
+                .Setup(h => h.Handle(It.Is<IRawMessage>(m => m.Payload == _fixture.Payload
                                 && Equals(m.RemoteEndPoint, _fixture.UdpReceiveResult.RemoteEndPoint)
                                 && m.ReceivedAt == expectedDateTime)))
-                .Callback<ISyslogMessage>(_ => handleCalledEvent.Set());
+                .Callback<IRawMessage>(_ => handleCalledEvent.Set());
 
             // Act
             var target = _fixture.GetSut();
@@ -69,14 +69,14 @@ namespace SharpSyslogServerTests
         {
             var expected = new Exception("Some error");
             _fixture.SyslogMessageHandlerMock
-                .Setup(h => h.Handle(It.IsAny<ISyslogMessage>()))
+                .Setup(h => h.Handle(It.IsAny<IRawMessage>()))
                 .Throws(expected);
 
             var target = _fixture.GetSut();
             var server = target.Start(CancellationToken.None);
 
             var actual = Assert.Throws<AggregateException>(() => server.Wait(TimeSpan.FromSeconds(1)));
-            
+
             Assert.Same(expected, actual.InnerExceptions.Single());
         }
 
@@ -84,7 +84,7 @@ namespace SharpSyslogServerTests
         public async Task Start_CancelledToken_DoesNotStartReceivingData()
         {
             var source = new CancellationTokenSource();
-            _fixture.UpdClientFactoryMock.Setup(f => f()).Callback(source.Cancel);
+            _fixture.UpdClientFactoryMock.Setup(f => f()).Returns(_fixture.UpdClient.Object).Callback(source.Cancel);
 
             var target = _fixture.GetSut();
             await Assert.ThrowsAsync<OperationCanceledException>(async () =>
