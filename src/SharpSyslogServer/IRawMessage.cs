@@ -3,9 +3,12 @@ using System.Net;
 
 namespace SharpSyslogServer
 {
-    public interface ISyslogMessage
+    /// <summary>
+    /// Raw message received by syslog transport
+    /// </summary>
+    public interface IRawMessage
     {
-        string Message { get; }
+        byte[] Payload { get; }
         DateTime ReceivedAt { get; }
         IPEndPoint RemoteEndPoint { get; }
     }
