@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Linq;
 using System.Net;
 using System.Net.Sockets;
 using System.Text;
@@ -19,11 +20,16 @@ namespace SharpSyslogServerTests
             public Mock<IUdpClient> UpdClient { get; } = new Mock<IUdpClient>();
             public Mock<Func<IUdpClient>> UpdClientFactoryMock { get; set; } = new Mock<Func<IUdpClient>>();
             public Mock<Func<DateTime>> DateTimeFuncMock { get; set; } = new Mock<Func<DateTime>>();
+            public UdpReceiveResult UdpReceiveResult { get; set; } 
+            public string Message { get; set; } = "A message";
 
             public Fixture()
             {
+                UdpReceiveResult = new UdpReceiveResult(Encoding.UTF8.GetBytes(Message), new IPEndPoint(IPAddress.Loopback, 0));
+
                 UpdClientFactoryMock.Setup(f => f()).Returns(UpdClient.Object);
                 DateTimeFuncMock.Setup(d => d()).Returns(() => DateTime.UtcNow);
+                UpdClient.Setup(u => u.ReceiveAsync()).ReturnsAsync(UdpReceiveResult);
             }
 
             public UdpSyslogServer GetSut()
@@ -38,18 +44,13 @@ namespace SharpSyslogServerTests
         public void Start_UdpReceivedResult_SyslogMessageHandlerCalled()
         {
             // Arrange
-            const string expectedMessage = "an expected message";
-            var expectedEndpoint = new IPEndPoint(IPAddress.Loopback, 0);
             var expectedDateTime = DateTime.UtcNow;
-
             _fixture.DateTimeFuncMock.Setup(d => d()).Returns(() => expectedDateTime);
-            _fixture.UpdClient.Setup(u => u.ReceiveAsync()).ReturnsAsync(
-                new UdpReceiveResult(Encoding.UTF8.GetBytes(expectedMessage), expectedEndpoint));
 
             var handleCalledEvent = new ManualResetEventSlim();
             _fixture.SyslogMessageHandlerMock
-                .Setup(h => h.Handle(It.Is<ISyslogMessage>(m => m.Message == expectedMessage
-                                && Equals(m.RemoteEndPoint, expectedEndpoint)
+                .Setup(h => h.Handle(It.Is<ISyslogMessage>(m => m.Message == _fixture.Message
+                                && Equals(m.RemoteEndPoint, _fixture.UdpReceiveResult.RemoteEndPoint)
                                 && m.ReceivedAt == expectedDateTime)))
                 .Callback<ISyslogMessage>(_ => handleCalledEvent.Set());
 
@@ -66,21 +67,17 @@ namespace SharpSyslogServerTests
         [Fact]
         public void Start_SyslogMessageHandlerThrows_TaskFinishesAsFaulted()
         {
-            _fixture.UpdClient.Setup(u => u.ReceiveAsync()).ReturnsAsync(new UdpReceiveResult());
-            var ex = new Exception("Some error");
-            var handleCalledEvent = new ManualResetEventSlim();
+            var expected = new Exception("Some error");
             _fixture.SyslogMessageHandlerMock
                 .Setup(h => h.Handle(It.IsAny<ISyslogMessage>()))
-                .Callback(handleCalledEvent.Set)
-                .Throws(ex);
+                .Throws(expected);
 
             var target = _fixture.GetSut();
-            var source = new CancellationTokenSource();
-            var server = target.Start(source.Token);
+            var server = target.Start(CancellationToken.None);
 
-            Assert.True(handleCalledEvent.Wait(TimeSpan.FromSeconds(1)), "Handle never called");
-            Assert.True(server.IsFaulted);
-            source.Cancel();
+            var actual = Assert.Throws<AggregateException>(() => server.Wait(TimeSpan.FromSeconds(1)));
+            
+            Assert.Same(expected, actual.InnerExceptions.Single());
         }
 
         [Fact]
