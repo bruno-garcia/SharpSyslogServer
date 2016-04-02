@@ -17,7 +17,7 @@ namespace SharpSyslogServer.Console
 
             try
             {
-                var sysLogTask = Task.Run(() => sysLog.Start(source.Token), source.Token);
+                var sysLogTask = sysLog.Start(source.Token);
                 Task.WaitAny(sysLogTask, exitKeyTask);
 
                 source.Cancel();
