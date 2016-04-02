@@ -3,7 +3,7 @@ using System.Net;
 
 namespace SharpSyslogServer
 {
-    internal sealed class RawMessage : IRawMessage
+    internal struct RawMessage : IRawMessage
     {
         public IPEndPoint RemoteEndPoint { get; }
         public byte[] Payload { get; }
