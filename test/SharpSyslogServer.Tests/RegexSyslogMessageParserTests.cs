@@ -1,6 +1,5 @@
 ﻿using System;
 using System.Collections.Generic;
-using System.Linq;
 using SharpSyslogServer;
 using SharpSyslogServer.SyslogMessageFormat;
 using Xunit;
@@ -16,16 +15,25 @@ namespace SharpSyslogServerTests
             var target = new RegexSyslogMessageParser();
             var actualMessage = target.Parse(testCase.RawMessage);
 
-            Assert.Equal(testCase.ExpectedMessage.Header.Priority, actualMessage.Header.Priority);
-            Assert.Equal(testCase.ExpectedMessage.Header.Version, actualMessage.Header.Version);
-            Assert.Equal(testCase.ExpectedMessage.Header.EventTime, actualMessage.Header.EventTime);
-            Assert.Equal(testCase.ExpectedMessage.Header.Hostname, actualMessage.Header.Hostname);
-            Assert.Equal(testCase.ExpectedMessage.Header.AppName, actualMessage.Header.AppName);
-            Assert.Equal(testCase.ExpectedMessage.Header.ProcessId, actualMessage.Header.ProcessId);
-            Assert.Equal(testCase.ExpectedMessage.Header.MessageId, actualMessage.Header.MessageId);
+            AssertEqual(testCase.ExpectedMessage, actualMessage);
+        }
 
-            Assert.Equal(testCase.ExpectedMessage.Header, actualMessage.Header);
-            Assert.Equal(testCase.ExpectedMessage, actualMessage);
+        private static void AssertEqual(SyslogMessage expected, SyslogMessage actual)
+        {
+            //Assert.Equal(expected, actual);
+
+            Assert.Equal(expected.Header, actual.Header);
+            Assert.Equal(expected.Message, actual.Message);
+            //Assert.Equal(expected.StructuredData, actual.StructuredData);
+
+            //Assert.True(expected.StructuredData.Count == actual.StructuredData.Count && !expected.StructuredData.Except(actual.StructuredData).Any());
+            Assert.Equal(expected.Header.Priority, actual.Header.Priority);
+            Assert.Equal(expected.Header.Version, actual.Header.Version);
+            Assert.Equal(expected.Header.EventTime, actual.Header.EventTime);
+            Assert.Equal(expected.Header.Hostname, actual.Header.Hostname);
+            Assert.Equal(expected.Header.AppName, actual.Header.AppName);
+            Assert.Equal(expected.Header.ProcessId, actual.Header.ProcessId);
+            Assert.Equal(expected.Header.MessageId, actual.Header.MessageId);
         }
 
         [Theory]
@@ -40,8 +48,71 @@ namespace SharpSyslogServerTests
 
         public static IEnumerable<object[]> GetSampleMessages()
         {
-            // \uFEFF = BOM char
-            // Examples from the RFC 5424: https://tools.ietf.org/html/rfc5424#section-6.5
+            // \uFEFF = BOM
+            yield return new object[] { new SampleMessage
+            {
+                RawMessage = "<0> \0 \0 \0 \0 \0 \0 \0",
+                ExpectedMessage = new SyslogMessage
+                {
+                    Header = new Header()
+                }
+            }};
+            yield return new object[] { new SampleMessage
+            {
+                RawMessage = "<0> \0 \0 \0 \0 \0 [id1 k1=\"v1\"][id2 k2=\"v2\"] \uFEFF",
+                ExpectedMessage = new SyslogMessage
+                {
+                    Header = new Header(),
+                    StructuredData = new[] {
+                        new StructuredDataElement
+                        {
+                            StructuredDataElementId = "id1",
+                            Parameters = new Dictionary<string, string>{{ "k1", "v1" }}
+                        },
+                        new StructuredDataElement
+                        {
+                            StructuredDataElementId = "id2",
+                            Parameters = new Dictionary<string, string>{{ "k2", "v2" }}
+                        }
+                    },
+                }
+            }};
+            yield return new object[] { new SampleMessage
+            {
+                RawMessage = "<165>1 2003-08-24T05:14:15.999999-12:00 mymachine.example.com evntslog procId ID47 [exampleSDID@32473 iut=\"3\"][examplePriority@32473 class=\"high\"] Some ASCII message with [some breakets], No BOM",
+                ExpectedMessage = new SyslogMessage
+                {
+                    Header = new Header
+                    {
+                        Version = 1,
+                        Priority = new Priority(20,5),
+                        EventTime = new DateTimeOffset(2003, 08, 24, 05, 14, 15, TimeSpan.FromHours(-12)).AddTicks(9999990),
+                        Hostname = "mymachine.example.com",
+                        AppName = "evntslog",
+                        ProcessId = "procId",
+                        MessageId = "ID47",
+                    },
+                    StructuredData = new[] {
+                        new StructuredDataElement
+                        {
+                            StructuredDataElementId = "exampleSDID@32473",
+                            Parameters = new Dictionary<string, string>
+                            {
+                                { "iut", "3" },
+                            }
+                        },
+                        new StructuredDataElement
+                        {
+                            StructuredDataElementId = "examplePriority@32473",
+                            Parameters = new Dictionary<string, string>
+                            {
+                                { "class", "high" }
+                            }
+                        },
+                    },
+                    Message = "Some ASCII message with [some breakets], No BOM"
+                }
+            }};
             yield return new object[] { new SampleMessage
             {
                 RawMessage = "<34>1 2003-10-11T22:14:15.003Z mymachine.example.com su \0 ID47 \0 \uFEFF'su root' failed for lonvick on /dev/pts/8",
@@ -50,19 +121,15 @@ namespace SharpSyslogServerTests
                     Header = new Header
                     {
                         Version = 1,
-                        Priority = new Priority
-                        {
-                            Facility = (Facility)4,
-                            Severity = (Severity)2
-                        },
+                        Priority = new Priority(4,2),
                         EventTime = new DateTimeOffset(2003, 10, 11, 22, 14, 15, 3, TimeSpan.Zero),
                         Hostname = "mymachine.example.com",
                         AppName = "su",
                         ProcessId = null,
                         MessageId = "ID47",
                     },
-                    Message = "'su root' failed for lonvick...",
-                    StructuredData = null
+                    StructuredData = null,
+                    Message = "'su root' failed for lonvick on /dev/pts/8"
                 }
             }};
             yield return new object[] { new SampleMessage
@@ -73,35 +140,27 @@ namespace SharpSyslogServerTests
                     Header = new Header
                     {
                         Version = 1,
-                        Priority = new Priority
-                        {
-                            Facility = (Facility)4,
-                            Severity = (Severity)2
-                        },
+                        Priority = new Priority(4,2),
                         EventTime = null,
                         Hostname = null,
                         AppName = null,
                         ProcessId = null,
                         MessageId = null,
                     },
-                    Message = "'su root' failed for lonvick...",
-                    StructuredData = null
+                    StructuredData = null,
+                    Message = "'su root' failed for lonvick on /dev/pts/8"
                 }
             }};
             yield return new object[] { new SampleMessage
             {
                     // As the Unicode BOM is missing, the syslog application does not know the encoding of the MSG part.
-                RawMessage = "<165>1 2003-08-24T05:14:15.000003-07:00 192.0.2.1 myproc 8710 \0 - %% It's time to make the do-nuts.",
+                RawMessage = "<165>1 2003-08-24T05:14:15.000003-07:00 192.0.2.1 myproc 8710 \0 \0 %% It's time to make the do-nuts.",
                 ExpectedMessage = new SyslogMessage
                 {
                     Header = new Header
                     {
                         Version = 1,
-                        Priority = new Priority
-                        {
-                            Facility = (Facility)20,
-                            Severity = (Severity)5
-                        },
+                        Priority = new Priority(20,5),
                         EventTime = new DateTimeOffset(2003, 08, 24, 05, 14, 15, TimeSpan.FromHours(-7))
                                             .AddTicks(30),
                         Hostname = "192.0.2.1",
@@ -109,8 +168,8 @@ namespace SharpSyslogServerTests
                         ProcessId = "8710",
                         MessageId = null,
                     },
-                    Message = "%% It's time to make the do-nuts.",
-                    StructuredData = null
+                    StructuredData = null,
+                    Message = "%% It's time to make the do-nuts."
                 }
             }};
             yield return new object[] { new SampleMessage
@@ -121,18 +180,13 @@ namespace SharpSyslogServerTests
                     Header = new Header
                     {
                         Version = 1,
-                        Priority = new Priority
-                        {
-                            Facility = (Facility)20,
-                            Severity = (Severity)5
-                        },
+                        Priority = new Priority(20,5),
                         EventTime = new DateTimeOffset(2003, 10, 11, 22, 14, 15, 3, TimeSpan.Zero),
                         Hostname = "mymachine.example.com",
                         AppName = "evntslog",
                         ProcessId = null,
                         MessageId = "ID47",
                     },
-                    Message = "An application event log entry...",
                     StructuredData = new[] {
                         new StructuredDataElement
                         {
@@ -144,7 +198,8 @@ namespace SharpSyslogServerTests
                                 { "eventID", "1011" },
                             }
                         }
-                    }
+                    },
+                    Message = "An application event log entry..."
                 }
             }};
             yield return new object[] { new SampleMessage
@@ -155,11 +210,7 @@ namespace SharpSyslogServerTests
                     Header = new Header
                     {
                         Version = 1,
-                        Priority = new Priority
-                        {
-                            Facility = (Facility)20,
-                            Severity = (Severity)5
-                        },
+                        Priority = new Priority(20,5),
                         EventTime = new DateTimeOffset(2003, 10, 11, 22, 14, 15, 3, TimeSpan.Zero),
                         Hostname = "mymachine.example.com",
                         AppName = "evntslog",
@@ -185,7 +236,8 @@ namespace SharpSyslogServerTests
                                 { "class", "high" }
                             }
                         },
-                    }
+                    },
+                    Message = null
                 }
             }};
         }
@@ -214,25 +266,22 @@ namespace SharpSyslogServerTests
             };
         }
 
-    }
-
-    public class SampleDateTime
-    {
-        public string Sample { get; }
-        public DateTimeOffset Expected { get; }
-
-        public SampleDateTime(string sample, DateTimeOffset expected)
+        public class SampleDateTime
         {
-            Sample = sample;
-            Expected = expected;
+            public string Sample { get; }
+            public DateTimeOffset Expected { get; }
+
+            public SampleDateTime(string sample, DateTimeOffset expected)
+            {
+                Sample = sample;
+                Expected = expected;
+            }
         }
-    }
 
-
-
-    public class SampleMessage
-    {
-        public string RawMessage { get; set; }
-        public SyslogMessage ExpectedMessage { get; set; }
+        public class SampleMessage
+        {
+            public string RawMessage { get; set; }
+            public SyslogMessage ExpectedMessage { get; set; }
+        }
     }
 }

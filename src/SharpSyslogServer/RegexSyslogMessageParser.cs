@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Collections.Generic;
 using System.Globalization;
 using System.Text;
 using System.Text.RegularExpressions;
@@ -16,21 +17,23 @@ namespace SharpSyslogServer
     public class RegexSyslogMessageParser : ISyslogMessageParser
     {
         private const char NullChar = '\u0000';
+        private const char ByteOrderMark = '\uFEFF';
+
         internal const string TimestampPattern = @"\d{4}(-\d{2}){2}(T(\d{2})(:\d{2}){2}(\.[0-9]+)?)?(Z|[+-]\d{2}:\d{2})?";
-        /// <summary>
-        /// </summary>
+
         private static readonly string MessagePattern = $@"
-^
-(?<{nameof(SyslogMessage.Header)}>
+^(?<{nameof(SyslogMessage.Header)}>
     <(?<{nameof(Header.Priority)}>\d{{1,3}})>
     (?<{nameof(Header.Version)}>\d{{1,2}})?\s
-    (({NullChar}|(?<{nameof(Header.EventTime)}>{TimestampPattern}))\s)?
-    (({NullChar}|(?<{nameof(Header.Hostname)}>[^\s]+))\s)?
-    (({NullChar}|(?<{nameof(Header.AppName)}>[^\s]+))\s)?
-    (({NullChar}|(?<{nameof(Header.ProcessId)}>[^\s]+))\s)?
-    (({NullChar}|(?<{nameof(Header.MessageId)}>[^\s]+))\s)?
-).*
-$";
+    ({NullChar}|(?<{nameof(Header.EventTime)}>{TimestampPattern}))\s
+    ({NullChar}|(?<{nameof(Header.Hostname)}>[^\s]+))\s
+    ({NullChar}|(?<{nameof(Header.AppName)}>[^\s]+))\s
+    ({NullChar}|(?<{nameof(Header.ProcessId)}>[^\s]+))\s
+    ({NullChar}|(?<{nameof(Header.MessageId)}>[^\s]+))\s
+)
+({NullChar}|(?<{nameof(SyslogMessage.StructuredData)}>(\[.*\])))\s
+(?<{nameof(SyslogMessage.Message)}>.*)";
+
         internal Regex SyslogFormatRegex { get; }
 
         public RegexSyslogMessageParser() : this(TimeSpan.FromSeconds(1)) { }
@@ -61,8 +64,25 @@ $";
 
             return new SyslogMessage
             {
-                Header = ParseHeader(match)
+                Header = ParseHeader(match),
+                StructuredData = ParseStructuredData(match),
+                Message = ParseMessage(match)
             };
+        }
+
+        private string ParseMessage(Match match)
+        {
+            string message = null;
+            ParseSuccessGroup(match.Groups[nameof(SyslogMessage.Message)], s => message = s);
+            message = message?.TrimStart(ByteOrderMark, NullChar);
+            return string.IsNullOrWhiteSpace(message) 
+                ? null 
+                : message;
+        }
+
+        private IReadOnlyCollection<StructuredDataElement> ParseStructuredData(Match match)
+        {
+            return null;
         }
 
         private Header ParseHeader(Match match)
@@ -75,11 +95,9 @@ $";
                     if (priorityNumber < 0 || priorityNumber > 191)
                         throw new Exception($"Invalid Priority value: {priorityNumber}");
 
-                    header.Priority = new Priority
-                    {
-                        Facility = (Facility)(priorityNumber / 8),
-                        Severity = (Severity)(priorityNumber % 8)
-                    };
+                    header.Priority = new Priority(
+                        (Facility)(priorityNumber / 8),
+                        (Severity)(priorityNumber % 8));
                 });
 
             ParseSuccessGroup(match.Groups[nameof(Header.EventTime)], s => header.EventTime = s);

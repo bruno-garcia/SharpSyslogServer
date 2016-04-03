@@ -7,7 +7,7 @@
     /// Severity values MUST be in the range of 0 to 7 inclusive.
     /// https://tools.ietf.org/html/rfc5424#section-6.2.1
     /// </remarks>
-    public enum Severity
+    public enum Severity : byte
     {
         /// <summary>
         /// System is unusable   

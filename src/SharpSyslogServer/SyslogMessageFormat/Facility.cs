@@ -7,7 +7,7 @@
     /// Facility values MUST be in the range of 0 to 23 inclusive.
     /// https://tools.ietf.org/html/rfc5424#section-6.2.1
     /// </remarks>
-    public enum Facility
+    public enum Facility : byte
     {
         KernelMessages = 0,
         UserLevelMessages = 1,

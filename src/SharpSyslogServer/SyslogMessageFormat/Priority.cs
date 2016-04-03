@@ -11,42 +11,49 @@ namespace SharpSyslogServer.SyslogMessageFormat
     /// purposes. 
     /// https://tools.ietf.org/html/rfc5424#section-6.2.1
     /// </remarks>
-    public class Priority : IEquatable<Priority>
+    public struct Priority : IEquatable<Priority>
     {
-        public Facility Facility { get; set; }
-        public Severity Severity { get; set; }
+        public Facility Facility { get; }
+        public Severity Severity { get; }
+
+        internal Priority(byte facility, byte severity)
+            : this((Facility)facility, (Severity)severity)
+        {
+        }
+
+        public Priority(Facility facility, Severity severity)
+        {
+            Facility = facility;
+            Severity = severity;
+        }
 
         public bool Equals(Priority other)
         {
-            if (ReferenceEquals(null, other)) return false;
-            if (ReferenceEquals(this, other)) return true;
             return Facility == other.Facility && Severity == other.Severity;
         }
 
         public override bool Equals(object obj)
         {
             if (ReferenceEquals(null, obj)) return false;
-            if (ReferenceEquals(this, obj)) return true;
-            if (obj.GetType() != this.GetType()) return false;
-            return Equals((Priority) obj);
+            return obj is Priority && Equals((Priority)obj);
         }
 
         public override int GetHashCode()
         {
             unchecked
             {
-                return ((int) Facility*397) ^ (int) Severity;
+                return ((int)Facility * 397) ^ (int)Severity;
             }
         }
 
         public static bool operator ==(Priority left, Priority right)
         {
-            return Equals(left, right);
+            return left.Equals(right);
         }
 
         public static bool operator !=(Priority left, Priority right)
         {
-            return !Equals(left, right);
+            return !left.Equals(right);
         }
 
         public override string ToString()

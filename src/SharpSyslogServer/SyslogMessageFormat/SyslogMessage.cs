@@ -35,7 +35,7 @@ namespace SharpSyslogServer.SyslogMessageFormat
         {
             if (ReferenceEquals(null, obj)) return false;
             if (ReferenceEquals(this, obj)) return true;
-            if (obj.GetType() != this.GetType()) return false;
+            if (obj.GetType() != GetType()) return false;
             return Equals((SyslogMessage) obj);
         }
 
@@ -43,7 +43,7 @@ namespace SharpSyslogServer.SyslogMessageFormat
         {
             unchecked
             {
-                var hashCode = (Header != null ? Header.GetHashCode() : 0);
+                var hashCode = Header != null ? Header.GetHashCode() : 0;
                 hashCode = (hashCode*397) ^ (StructuredData != null ? StructuredData.GetHashCode() : 0);
                 hashCode = (hashCode*397) ^ (Message != null ? Message.GetHashCode() : 0);
                 return hashCode;

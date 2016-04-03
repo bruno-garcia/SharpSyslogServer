@@ -15,7 +15,7 @@ namespace SharpSyslogServer.SyslogMessageFormat
         /// <summary>
         /// Protocol Version
         /// </summary>
-        public Version Version { get; set; }
+        public Version? Version { get; set; }
         /// <summary>
         /// Time of the event
         /// </summary>
@@ -53,7 +53,7 @@ namespace SharpSyslogServer.SyslogMessageFormat
         {
             if (ReferenceEquals(null, obj)) return false;
             if (ReferenceEquals(this, obj)) return true;
-            if (obj.GetType() != this.GetType()) return false;
+            if (obj.GetType() != GetType()) return false;
             return Equals((Header) obj);
         }
 
@@ -61,7 +61,7 @@ namespace SharpSyslogServer.SyslogMessageFormat
         {
             unchecked
             {
-                var hashCode = (Priority != null ? Priority.GetHashCode() : 0);
+                var hashCode = Priority != null ? Priority.GetHashCode() : 0;
                 hashCode = (hashCode*397) ^ Version.GetHashCode();
                 hashCode = (hashCode*397) ^ EventTime.GetHashCode();
                 hashCode = (hashCode*397) ^ (Hostname != null ? Hostname.GetHashCode() : 0);
