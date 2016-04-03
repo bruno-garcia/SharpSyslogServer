@@ -8,7 +8,7 @@ namespace SharpSyslogServer.SyslogMessageFormat
     /// <remarks>
     /// https://tools.ietf.org/html/rfc5424#section-6.2.2
     /// </remarks>
-    public struct Version
+    public struct Version : IEquatable<Version>
     {
         private readonly byte _version;
 
@@ -29,9 +29,35 @@ namespace SharpSyslogServer.SyslogMessageFormat
             return new Version(version);
         }
 
+        public bool Equals(Version other)
+        {
+            return _version == other._version;
+        }
+
+        public override bool Equals(object obj)
+        {
+            if (ReferenceEquals(null, obj)) return false;
+            return obj is Version && Equals((Version) obj);
+        }
+
+        public override int GetHashCode()
+        {
+            return _version.GetHashCode();
+        }
+
+        public static bool operator ==(Version left, Version right)
+        {
+            return left.Equals(right);
+        }
+
+        public static bool operator !=(Version left, Version right)
+        {
+            return !left.Equals(right);
+        }
+
         public override string ToString()
         {
-            return $"Version: {_version}";
+            return _version.ToString();
         }
     }
 }
