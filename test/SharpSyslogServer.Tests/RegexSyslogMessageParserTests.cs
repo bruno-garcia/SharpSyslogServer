@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Linq;
 using SharpSyslogServer;
 using SharpSyslogServer.SyslogMessageFormat;
 using Xunit;
@@ -14,11 +15,27 @@ namespace SharpSyslogServerTests
         {
             var target = new RegexSyslogMessageParser();
             var actualMessage = target.Parse(testCase.RawMessage);
+
             Assert.Equal(testCase.ExpectedMessage.Header.Priority, actualMessage.Header.Priority);
             Assert.Equal(testCase.ExpectedMessage.Header.Version, actualMessage.Header.Version);
             Assert.Equal(testCase.ExpectedMessage.Header.EventTime, actualMessage.Header.EventTime);
+            Assert.Equal(testCase.ExpectedMessage.Header.Hostname, actualMessage.Header.Hostname);
+            Assert.Equal(testCase.ExpectedMessage.Header.AppName, actualMessage.Header.AppName);
+            Assert.Equal(testCase.ExpectedMessage.Header.ProcessId, actualMessage.Header.ProcessId);
+            Assert.Equal(testCase.ExpectedMessage.Header.MessageId, actualMessage.Header.MessageId);
 
-            //Assert.Equal(testCase.ExpectedMessage, actualMessage);
+            Assert.Equal(testCase.ExpectedMessage.Header, actualMessage.Header);
+            Assert.Equal(testCase.ExpectedMessage, actualMessage);
+        }
+
+        [Theory]
+        [MemberData(nameof(GetSampleDateTime))]
+        public void Parse_DateTime_AsExpected(SampleDateTime testCase)
+        {
+            var target = new RegexSyslogMessageParser();
+            DateTimeOffset actual;
+            Assert.True(target.TryParseTimestamp(testCase.Sample, out actual));
+            Assert.Equal(testCase.Expected, actual);
         }
 
         public static IEnumerable<object[]> GetSampleMessages()
@@ -74,7 +91,7 @@ namespace SharpSyslogServerTests
             yield return new object[] { new SampleMessage
             {
                     // As the Unicode BOM is missing, the syslog application does not know the encoding of the MSG part.
-                RawMessage = "<165>1 2003-08-24T05:14:15.000003-07:00 192.0.2.1 myproc 8710 - - %% It's time to make the do-nuts.",
+                RawMessage = "<165>1 2003-08-24T05:14:15.000003-07:00 192.0.2.1 myproc 8710 \0 - %% It's time to make the do-nuts.",
                 ExpectedMessage = new SyslogMessage
                 {
                     Header = new Header
@@ -98,7 +115,7 @@ namespace SharpSyslogServerTests
             }};
             yield return new object[] { new SampleMessage
             {
-                RawMessage = "<165>1 2003-10-11T22:14:15.003Z mymachine.example.com evntslog - ID47 [exampleSDID@32473 iut=\"3\" eventSource=\"Application\" eventID=\"1011\"] \uFEFFAn application event log entry...",
+                RawMessage = "<165>1 2003-10-11T22:14:15.003Z mymachine.example.com evntslog \0 ID47 [exampleSDID@32473 iut=\"3\" eventSource=\"Application\" eventID=\"1011\"] \uFEFFAn application event log entry...",
                 ExpectedMessage = new SyslogMessage
                 {
                     Header = new Header
@@ -132,7 +149,7 @@ namespace SharpSyslogServerTests
             }};
             yield return new object[] { new SampleMessage
             {
-                RawMessage = "<165>1 2003-10-11T22:14:15.003Z mymachine.example.com evntslog - ID47 [exampleSDID@32473 iut=\"3\" eventSource=\"Application\" eventID=\"1011\"][examplePriority@32473 class=\"high\"]",
+                RawMessage = "<165>1 2003-10-11T22:14:15.003Z mymachine.example.com evntslog \0 ID47 [exampleSDID@32473 iut=\"3\" eventSource=\"Application\" eventID=\"1011\"][examplePriority@32473 class=\"high\"]",
                 ExpectedMessage = new SyslogMessage
                 {
                     Header = new Header
@@ -171,16 +188,6 @@ namespace SharpSyslogServerTests
                     }
                 }
             }};
-        }
-
-        [Theory]
-        [MemberData(nameof(GetSampleDateTime))]
-        public void Parse_DateTime_AsExpected(SampleDateTime testCase)
-        {
-            var target = new RegexSyslogMessageParser();
-            DateTimeOffset actual;
-            Assert.True(target.TryParseTimestamp(testCase.Sample, out actual));
-            Assert.Equal(testCase.Expected, actual);
         }
 
         public static IEnumerable<object[]> GetSampleDateTime()
