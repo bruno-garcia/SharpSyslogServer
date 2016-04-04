@@ -49,15 +49,87 @@ namespace SharpSyslogServerTests
         public static IEnumerable<object[]> GetSampleMessages()
         {
             // \uFEFF = BOM
-            yield return new object[] { new SampleMessage
+            yield return new object[] { new SampleMessage // all nulls, absent message
+            {
+                RawMessage = "<0> \0 \0 \0 \0 \0 \0",
+                ExpectedMessage = new SyslogMessage{Header = new Header()}
+            }};
+            yield return new object[] { new SampleMessage // all nulls
             {
                 RawMessage = "<0> \0 \0 \0 \0 \0 \0 \0",
+                ExpectedMessage = new SyslogMessage{Header = new Header()}
+            }};
+            yield return new object[] { new SampleMessage // all nulls but message
+            {
+                RawMessage = "<0> \0 \0 \0 \0 \0 \0 a",
                 ExpectedMessage = new SyslogMessage
                 {
-                    Header = new Header()
+                    Header = new Header(),
+                    Message = "a"
                 }
             }};
-            yield return new object[] { new SampleMessage
+            yield return new object[] { new SampleMessage  // single structuredData, no msg
+            {
+                RawMessage = "<0> \0 \0 \0 \0 \0 [a a=\"b\"]",
+                ExpectedMessage = new SyslogMessage
+                {
+                    Header = new Header(),
+                    StructuredData = new[] {
+                        new StructuredDataElement
+                        {
+                            StructuredDataElementId = "a",
+                            Parameters = new Dictionary<string, string>{{ "a", "b" }}
+                        }
+                    }
+                }
+            }};
+            yield return new object[] { new SampleMessage // multiple structuredData, no msg
+            {
+                RawMessage = "<0> \0 \0 \0 \0 \0 [a a=\"b\" c=\"d\"][b a=\"b\"]",
+                ExpectedMessage = new SyslogMessage
+                {
+                    Header = new Header(),
+                    StructuredData = new[] {
+                        new StructuredDataElement
+                        {
+                            StructuredDataElementId = "a",
+                            Parameters = new Dictionary<string, string>{ { "a", "b" }, { "c", "d" } }
+                        },
+                        new StructuredDataElement
+                        {
+                            StructuredDataElementId = "b",
+                            Parameters = new Dictionary<string, string>{ { "a", "b" } }
+                        }
+                    }
+                }
+            }};
+            yield return new object[] { new SampleMessage // multiple structuredData, with msg
+            {
+                RawMessage = "<0> \0 \0 \0 \0 \0 [a a=\"b\" c=\"d\"][b a=\"b\"][c a=\"b\"] [msg] [msg]",
+                ExpectedMessage = new SyslogMessage
+                {
+                    Header = new Header(),
+                    StructuredData = new[] {
+                        new StructuredDataElement
+                        {
+                            StructuredDataElementId = "a",
+                            Parameters = new Dictionary<string, string>{ { "a", "b" }, { "c", "d" } }
+                        },
+                        new StructuredDataElement
+                        {
+                            StructuredDataElementId = "b",
+                            Parameters = new Dictionary<string, string>{ { "a", "b" } }
+                        },
+                        new StructuredDataElement
+                        {
+                            StructuredDataElementId = "c",
+                            Parameters = new Dictionary<string, string>{ { "a", "b" } }
+                        }
+                    },
+                    Message = "[msg] [msg]"
+                }
+            }};
+            yield return new object[] { new SampleMessage // StructuredData followed by BOM and end of line
             {
                 RawMessage = "<0> \0 \0 \0 \0 \0 [id1 k1=\"v1\"][id2 k2=\"v2\"] \uFEFF",
                 ExpectedMessage = new SyslogMessage

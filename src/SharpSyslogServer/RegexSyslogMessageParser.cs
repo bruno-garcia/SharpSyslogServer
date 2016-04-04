@@ -31,7 +31,7 @@ namespace SharpSyslogServer
     ({NullChar}|(?<{nameof(Header.ProcessId)}>[^\s]+))\s
     ({NullChar}|(?<{nameof(Header.MessageId)}>[^\s]+))\s
 )
-({NullChar}|(?<{nameof(SyslogMessage.StructuredData)}>(\[.*\])))\s
+({NullChar}|(?<{nameof(SyslogMessage.StructuredData)}>((\[.+?\](\s|$)))+?))\s?
 (?<{nameof(SyslogMessage.Message)}>.*)";
 
         internal Regex SyslogFormatRegex { get; }
