@@ -44,7 +44,6 @@ namespace SharpSyslogServerTests
 
         private static void AssertEqual(SyslogMessage expected, SyslogMessage actual)
         {
-            Assert.Equal(expected.Header, actual.Header);
             Assert.Equal(expected.Message, actual.Message);
 
             Assert.Equal(expected.Header.Priority, actual.Header.Priority);
@@ -55,7 +54,11 @@ namespace SharpSyslogServerTests
             Assert.Equal(expected.Header.ProcessId, actual.Header.ProcessId);
             Assert.Equal(expected.Header.MessageId, actual.Header.MessageId);
 
+            Assert.Equal(expected.Header, actual.Header); // if every header value was equal: header should be equal
+
             AssertEqual(expected.StructuredData, actual.StructuredData);
+
+            Assert.Equal(expected, actual); // If everything was equal: whole Message should be equal
         }
 
         private static void AssertEqual(

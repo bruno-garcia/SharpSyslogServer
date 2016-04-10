@@ -94,9 +94,9 @@ namespace SharpSyslogServer
             return new StructuredDataElement(
                 elementMatch.Groups["StructuredDataElementId"].Value,
                 elementMatch.Groups["Parameters"].Captures
-                                            .Cast<Capture>()
-                                            .Select(c => ParseParameter(c.ToString()))
-                                            .ToDictionary(k => k.Key, v => v.Value));
+                    .Cast<Capture>()
+                    .Select(c => ParseParameter(c.ToString()))
+                    .ToList());
         }
 
         private KeyValuePair<string, string> ParseParameter(string keyValue)

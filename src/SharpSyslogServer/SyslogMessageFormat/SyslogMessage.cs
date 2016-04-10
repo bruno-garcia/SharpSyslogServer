@@ -41,8 +41,7 @@ namespace SharpSyslogServer.SyslogMessageFormat
             if (ReferenceEquals(this, other)) return true;
             return Equals(Header, other.Header)
                 && (Equals(StructuredData, other.StructuredData)
-                    || (StructuredData.Count == other.StructuredData.Count
-                        && !StructuredData.Except(other.StructuredData).Any()))
+                    || (StructuredData.SequenceEqual(other.StructuredData)))
                 && string.Equals(Message, other.Message);
         }
 

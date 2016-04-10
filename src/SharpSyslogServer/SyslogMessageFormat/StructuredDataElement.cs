@@ -19,9 +19,9 @@ namespace SharpSyslogServer.SyslogMessageFormat
         /// Key: 1*32PRINTUSASCII; except '=', SP, ']', %d34(")
         /// Value: UTF-8-STRING ; characters '"', '\' and ; ']' MUST be escaped.
         /// </remarks>
-        public ICollection<KeyValuePair<string, string>> Parameters { get; }
+        public IReadOnlyCollection<KeyValuePair<string, string>> Parameters { get; }
 
-        public StructuredDataElement(string structuredDataElementId, ICollection<KeyValuePair<string, string>> parameters)
+        public StructuredDataElement(string structuredDataElementId, IReadOnlyCollection<KeyValuePair<string, string>> parameters)
         {
             StructuredDataElementId = structuredDataElementId;
             Parameters = parameters;
@@ -33,8 +33,7 @@ namespace SharpSyslogServer.SyslogMessageFormat
             if (ReferenceEquals(this, other)) return true;
             return string.Equals(StructuredDataElementId, other.StructuredDataElementId)
                 && (Equals(Parameters, other.Parameters)
-                    || (Parameters.Count == other.Parameters.Count
-                        && !Parameters.Except(other.Parameters).Any()));
+                    || (Parameters.SequenceEqual(other.Parameters)));
         }
 
         public override bool Equals(object obj)
