@@ -6,41 +6,61 @@ namespace SharpSyslogServer.SyslogMessageFormat
     /// Syslog Message Header
     /// </summary>
     /// <remarks>https://tools.ietf.org/html/rfc5424#section-6</remarks>
-    public class Header : IEquatable<Header>
+    public sealed class Header : IEquatable<Header>
     {
         /// <summary>
         /// Priority: Facility and Severity
         /// </summary>
-        public Priority Priority { get; set; }
+        public Priority Priority { get; }
         /// <summary>
         /// Protocol Version
         /// </summary>
-        public Version? Version { get; set; }
+        public Version? Version { get; }
         /// <summary>
         /// Time of the event
         /// </summary>
         /// <remarks>NILVALUE / FULL-DATE "T" FULL-TIME</remarks>
-        public DateTimeOffset? EventTime { get; set; }
+        public DateTimeOffset? EventTime { get; }
         /// <summary>
         /// Hostname
         /// </summary>
         /// <remarks>NILVALUE / 1*255PRINTUSASCII</remarks>
-        public string Hostname { get; set; }
+        public string Hostname { get; }
         /// <summary>
         /// Application Name
         /// </summary>
         /// <remarks>NILVALUE / 1*48PRINTUSASCII</remarks>
-        public string AppName { get; set; }
+        public string AppName { get; }
         /// <summary>
         /// Process Identifier
         /// </summary>
         /// <remarks>NILVALUE / 1*128PRINTUSASCII</remarks>
-        public string ProcessId { get; set; }
+        public string ProcessId { get; }
         /// <summary>
         /// Message Identifier
         /// </summary>
         /// <remarks>NILVALUE / 1*32PRINTUSASCII</remarks>
-        public string MessageId { get; set; }
+        public string MessageId { get; }
+
+        public Header(
+            Priority priority,
+            Version? version = null,
+            DateTimeOffset? eventTime = null,
+            string hostname = null,
+            string appName = null,
+            string processId = null,
+            string messageId = null)
+        {
+            Priority = priority;
+            Version = version;
+            EventTime = eventTime;
+            Hostname = hostname;
+            AppName = appName;
+            ProcessId = processId;
+            MessageId = messageId;
+        }
+
+        internal Header() : this(new Priority()) { }
 
         public bool Equals(Header other)
         {
@@ -54,7 +74,7 @@ namespace SharpSyslogServer.SyslogMessageFormat
             if (ReferenceEquals(null, obj)) return false;
             if (ReferenceEquals(this, obj)) return true;
             if (obj.GetType() != GetType()) return false;
-            return Equals((Header) obj);
+            return Equals((Header)obj);
         }
 
         public override int GetHashCode()
@@ -62,12 +82,12 @@ namespace SharpSyslogServer.SyslogMessageFormat
             unchecked
             {
                 var hashCode = Priority != null ? Priority.GetHashCode() : 0;
-                hashCode = (hashCode*397) ^ Version.GetHashCode();
-                hashCode = (hashCode*397) ^ EventTime.GetHashCode();
-                hashCode = (hashCode*397) ^ (Hostname != null ? Hostname.GetHashCode() : 0);
-                hashCode = (hashCode*397) ^ (AppName != null ? AppName.GetHashCode() : 0);
-                hashCode = (hashCode*397) ^ (ProcessId != null ? ProcessId.GetHashCode() : 0);
-                hashCode = (hashCode*397) ^ (MessageId != null ? MessageId.GetHashCode() : 0);
+                hashCode = (hashCode * 397) ^ Version.GetHashCode();
+                hashCode = (hashCode * 397) ^ EventTime.GetHashCode();
+                hashCode = (hashCode * 397) ^ (Hostname != null ? Hostname.GetHashCode() : 0);
+                hashCode = (hashCode * 397) ^ (AppName != null ? AppName.GetHashCode() : 0);
+                hashCode = (hashCode * 397) ^ (ProcessId != null ? ProcessId.GetHashCode() : 0);
+                hashCode = (hashCode * 397) ^ (MessageId != null ? MessageId.GetHashCode() : 0);
                 return hashCode;
             }
         }

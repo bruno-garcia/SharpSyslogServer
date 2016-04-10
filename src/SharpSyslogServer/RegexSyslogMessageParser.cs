@@ -1,6 +1,5 @@
 ﻿using System;
 using System.Collections.Generic;
-using System.Globalization;
 using System.Linq;
 using System.Text;
 using System.Text.RegularExpressions;
@@ -32,7 +31,7 @@ namespace SharpSyslogServer
     (\0|(?<ProcessId>[^\s]+))\s
     (\0|(?<MessageId>[^\s]+))\s
 )
-(\0|"+ StructuredDataPattern + @")(\s|$)
+(\0|" + StructuredDataPattern + @")(\s|$)
 (?<Message>.*)$";
 
         internal Regex SyslogFormatRegex { get; }
@@ -65,12 +64,11 @@ namespace SharpSyslogServer
             var headerGroup = match.Groups["Header"];
             if (!headerGroup.Success) throw new InvalidOperationException("Message doesn't have a Header");
 
-            return new SyslogMessage
-            {
-                Header = ParseHeader(match),
-                StructuredData = ParseStructuredData(match).ToList(),
-                Message = ParseMessage(match)
-            };
+            return new SyslogMessage(
+                ParseHeader(match),
+                ParseStructuredData(match).ToList(),
+                ParseMessage(match)
+                );
         }
 
         internal IEnumerable<StructuredDataElement> ParseStructuredData(Match messageMatch)
@@ -93,14 +91,12 @@ namespace SharpSyslogServer
             if (!elementMatch.Success)
                 return null;
 
-            return new StructuredDataElement
-            {
-                StructuredDataElementId = elementMatch.Groups[nameof(StructuredDataElement.StructuredDataElementId)].Value,
-                Parameters = elementMatch.Groups[nameof(StructuredDataElement.Parameters)].Captures
+            return new StructuredDataElement(
+                elementMatch.Groups["StructuredDataElementId"].Value,
+                elementMatch.Groups["Parameters"].Captures
                                             .Cast<Capture>()
                                             .Select(c => ParseParameter(c.ToString()))
-                                            .ToDictionary(k => k.Key, v => v.Value)
-            };
+                                            .ToDictionary(k => k.Key, v => v.Value));
         }
 
         private KeyValuePair<string, string> ParseParameter(string keyValue)
@@ -109,75 +105,35 @@ namespace SharpSyslogServer
             return new KeyValuePair<string, string>(keyValueMatch.Groups["Key"].Value, keyValueMatch.Groups["Value"].Value);
         }
 
-        internal bool TryParseTimestamp(string timestamp, out DateTimeOffset eventTime)
-        {
-            return DateTimeOffset.TryParse(
-                timestamp,
-                CultureInfo.InvariantCulture,
-                DateTimeStyles.RoundtripKind,
-                out eventTime);
-        }
-
         private Header ParseHeader(Match match)
         {
-            var header = new Header();
+            var priorityNumber = match.ParseSuccessfulDouble("Priority");
+            if (!priorityNumber.HasValue || priorityNumber < 0 || priorityNumber > 191)
+                throw new Exception($"Invalid Priority value: {priorityNumber}");
 
-            ParseSuccessGroup(match.Groups["Priority"],
-                (double priorityNumber) =>
-                {
-                    if (priorityNumber < 0 || priorityNumber > 191)
-                        throw new Exception($"Invalid Priority value: {priorityNumber}");
-
-                    header.Priority = new Priority(
-                        (Facility)(priorityNumber / 8),
-                        (Severity)(priorityNumber % 8));
-                });
-
-            ParseSuccessGroup(match.Groups["EventTime"], s => header.EventTime = s);
-            ParseSuccessGroup(match.Groups["Version"], s => header.Version = s);
-            ParseSuccessGroup(match.Groups["Hostname"], s => header.Hostname = s);
-            ParseSuccessGroup(match.Groups["AppName"], s => header.AppName = s);
-            ParseSuccessGroup(match.Groups["MessageId"], s => header.MessageId = s);
-            ParseSuccessGroup(match.Groups["ProcessId"], s => header.ProcessId = s);
-
-            return header;
+            return new Header(
+                new Priority(
+                     (Facility)(priorityNumber / 8),
+                     (Severity)(priorityNumber % 8)),
+                match.ParseSuccessfulByte("Version"),
+                match.ParseTimestamp("EventTime"),
+                match.GroupSuccessValue("Hostname"),
+                match.GroupSuccessValue("AppName"),
+                match.GroupSuccessValue("ProcessId"),
+                match.GroupSuccessValue("MessageId"));
         }
 
         private string ParseMessage(Match match)
         {
-            string message = null;
-            ParseSuccessGroup(match.Groups["Message"], s => message = s);
-            message = message?.TrimStart('\uFEFF', '\0');
+            var group = match.Groups["Message"];
+            if (!group.Success) return null;
+
+            var value = match.GroupSuccessValue("Message");
+
+            var message = value?.TrimStart('\uFEFF', '\0');
             return string.IsNullOrWhiteSpace(message)
                 ? null
                 : message;
-        }
-
-        private void ParseSuccessGroup(Group group, Action<string> setValueCallback)
-        {
-            if (group.Success)
-                setValueCallback(group.Value);
-        }
-
-        private void ParseSuccessGroup(Group group, Action<DateTimeOffset> setValueCallback)
-        {
-            DateTimeOffset dateTimeOffset;
-            if (group.Success && TryParseTimestamp(group.Value, out dateTimeOffset))
-                setValueCallback(dateTimeOffset);
-        }
-
-        private void ParseSuccessGroup(Group group, Action<byte> setValueCallback)
-        {
-            byte @byte;
-            if (group.Success && byte.TryParse(group.Value, out @byte))
-                setValueCallback(@byte);
-        }
-
-        private void ParseSuccessGroup(Group group, Action<double> setValueCallback)
-        {
-            double @double;
-            if (group.Success && double.TryParse(group.Value, out @double))
-                setValueCallback(@double);
         }
     }
 }

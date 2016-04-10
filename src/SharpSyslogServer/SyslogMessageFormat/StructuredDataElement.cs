@@ -4,13 +4,13 @@ using System.Linq;
 
 namespace SharpSyslogServer.SyslogMessageFormat
 {
-    public class StructuredDataElement : IEquatable<StructuredDataElement>
+    public sealed class StructuredDataElement : IEquatable<StructuredDataElement>
     {
         /// <summary>
         /// The Structured Data Element Identifier
         /// </summary>
         /// <summary>https://tools.ietf.org/html/rfc5424#section-6.3.1</summary>
-        public string StructuredDataElementId { get; set; }
+        public string StructuredDataElementId { get; }
         /// <summary>
         /// Structured Data Element Parameters 
         /// </summary>
@@ -19,7 +19,13 @@ namespace SharpSyslogServer.SyslogMessageFormat
         /// Key: 1*32PRINTUSASCII; except '=', SP, ']', %d34(")
         /// Value: UTF-8-STRING ; characters '"', '\' and ; ']' MUST be escaped.
         /// </remarks>
-        public ICollection<KeyValuePair<string, string>> Parameters { get; set; }
+        public ICollection<KeyValuePair<string, string>> Parameters { get; }
+
+        public StructuredDataElement(string structuredDataElementId, ICollection<KeyValuePair<string, string>> parameters)
+        {
+            StructuredDataElementId = structuredDataElementId;
+            Parameters = parameters;
+        }
 
         public bool Equals(StructuredDataElement other)
         {

@@ -9,24 +9,39 @@ namespace SharpSyslogServer.SyslogMessageFormat
     /// </summary>
     public class SyslogMessage : IEquatable<SyslogMessage>
     {
-        public Header Header { get; set; }
+        /// <summary>
+        /// Message header
+        /// </summary>
+        public Header Header { get; }
         /// <summary>
         /// Structured Data - Elements
         /// </summary>
         /// <remarks>https://tools.ietf.org/html/rfc5424#section-6.3</remarks>
-        public IReadOnlyCollection<StructuredDataElement> StructuredData { get; set; }
+        public IReadOnlyCollection<StructuredDataElement> StructuredData { get; }
         /// <summary>
         /// The syslog Message text
         /// </summary>
-        public string Message { get; set; }
+        public string Message { get; }
+
+        public SyslogMessage(Header header, IReadOnlyCollection<StructuredDataElement> structuredData = null, string message = null)
+        {
+            Header = header;
+            StructuredData = structuredData ?? new StructuredDataElement[0];
+            Message = message;
+        }
+
+        internal SyslogMessage() : this(new Header()) { }
+        internal SyslogMessage(string message) : this(new Header(), message: message) { }
+        internal SyslogMessage(IReadOnlyCollection<StructuredDataElement> structuredData) : this(new Header(), structuredData: structuredData) { }
+        internal SyslogMessage(string message, IReadOnlyCollection<StructuredDataElement> structuredData) : this(new Header(), message: message, structuredData: structuredData) { }
 
         public bool Equals(SyslogMessage other)
         {
             if (ReferenceEquals(null, other)) return false;
             if (ReferenceEquals(this, other)) return true;
-            return Equals(Header, other.Header) 
-                && (Equals(StructuredData, other.StructuredData) 
-                    || (StructuredData.Count == other.StructuredData.Count 
+            return Equals(Header, other.Header)
+                && (Equals(StructuredData, other.StructuredData)
+                    || (StructuredData.Count == other.StructuredData.Count
                         && !StructuredData.Except(other.StructuredData).Any()))
                 && string.Equals(Message, other.Message);
         }
@@ -36,7 +51,7 @@ namespace SharpSyslogServer.SyslogMessageFormat
             if (ReferenceEquals(null, obj)) return false;
             if (ReferenceEquals(this, obj)) return true;
             if (obj.GetType() != GetType()) return false;
-            return Equals((SyslogMessage) obj);
+            return Equals((SyslogMessage)obj);
         }
 
         public override int GetHashCode()
@@ -44,8 +59,8 @@ namespace SharpSyslogServer.SyslogMessageFormat
             unchecked
             {
                 var hashCode = Header != null ? Header.GetHashCode() : 0;
-                hashCode = (hashCode*397) ^ (StructuredData != null ? StructuredData.GetHashCode() : 0);
-                hashCode = (hashCode*397) ^ (Message != null ? Message.GetHashCode() : 0);
+                hashCode = (hashCode * 397) ^ (StructuredData != null ? StructuredData.GetHashCode() : 0);
+                hashCode = (hashCode * 397) ^ (Message != null ? Message.GetHashCode() : 0);
                 return hashCode;
             }
         }

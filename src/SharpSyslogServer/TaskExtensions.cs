@@ -4,7 +4,7 @@ using System.Threading.Tasks;
 
 namespace SharpSyslogServer
 {
-    internal static class AsyncExtensions
+    internal static class TaskExtensions
     {
         public static async Task<T> WithCancellation<T>(this Task<T> task, CancellationToken cancellationToken)
         {

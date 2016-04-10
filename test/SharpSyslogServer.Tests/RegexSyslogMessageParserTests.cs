@@ -24,9 +24,8 @@ namespace SharpSyslogServerTests
         [MemberData(nameof(GetSampleValidDateTime))]
         public void Parse_ValidTimestamp_ParsesDateTimeOffset(SampleTimestamp testCase)
         {
-            var target = new RegexSyslogMessageParser();
             DateTimeOffset actual;
-            Assert.True(target.TryParseTimestamp(testCase.RawTimestamp, out actual));
+            Assert.True(MatchExtensions.TryParseTimestamp(testCase.RawTimestamp, out actual));
             Assert.Equal(testCase.ExpectedDateTimeOffset, actual);
         }
 
