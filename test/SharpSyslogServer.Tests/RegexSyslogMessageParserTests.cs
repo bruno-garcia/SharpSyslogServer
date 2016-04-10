@@ -20,6 +20,29 @@ namespace SharpSyslogServerTests
             AssertEqual(testCase.ExpectedMessage, actualMessage);
         }
 
+        [Theory]
+        [MemberData(nameof(GetSampleValidDateTime))]
+        public void Parse_ValidTimestamp_ParsesDateTimeOffset(SampleTimestamp testCase)
+        {
+            var target = new RegexSyslogMessageParser();
+            DateTimeOffset actual;
+            Assert.True(target.TryParseTimestamp(testCase.RawTimestamp, out actual));
+            Assert.Equal(testCase.ExpectedDateTimeOffset, actual);
+        }
+
+        [Theory]
+        [MemberData(nameof(GetSampleStructuredData))]
+        public void Parse_ValidStructuredData_ParsesStructuredDataElement(SampleStructuredData testCase)
+        {
+            var expected = testCase.ExpectedStructuredDataElements;
+            var target = new RegexSyslogMessageParser();
+            var regex = new Regex(RegexSyslogMessageParser.StructuredDataPattern, RegexSyslogMessageParser.Flags, TimeSpan.FromSeconds(1));
+            var match = regex.Match(testCase.RawStructuredData);
+            var actual = target.ParseStructuredData(match).ToList();
+
+            AssertEqual(expected, actual);
+        }
+
         private static void AssertEqual(SyslogMessage expected, SyslogMessage actual)
         {
             Assert.Equal(expected.Header, actual.Header);
@@ -56,29 +79,6 @@ namespace SharpSyslogServerTests
                     Assert.Equal(expectedItem.Parameters.ElementAt(j).Value, actualItem.Parameters.ElementAt(j).Value);
                 }
             }
-        }
-
-        [Theory]
-        [MemberData(nameof(GetSampleValidDateTime))]
-        public void Parse_ValidTimestamp_ParsesDateTimeOffset(SampleTimestamp testCase)
-        {
-            var target = new RegexSyslogMessageParser();
-            DateTimeOffset actual;
-            Assert.True(target.TryParseTimestamp(testCase.RawTimestamp, out actual));
-            Assert.Equal(testCase.ExpectedDateTimeOffset, actual);
-        }
-
-        [Theory]
-        [MemberData(nameof(GetSampleStructuredData))]
-        public void Parse_ValidStructuredData_ParsesStructuredDataElement(SampleStructuredData testCase)
-        {
-            var expected = testCase.ExpectedStructuredDataElements;
-            var target = new RegexSyslogMessageParser();
-            var regex = new Regex(RegexSyslogMessageParser.StructuredDataPattern, RegexSyslogMessageParser.Flags, TimeSpan.FromSeconds(1));
-            var match = regex.Match(testCase.RawStructuredData);
-            var actual = target.ParseStructuredData(match).ToList();
-
-            AssertEqual(expected, actual);
         }
     }
 }

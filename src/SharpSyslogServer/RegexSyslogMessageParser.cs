@@ -17,32 +17,28 @@ namespace SharpSyslogServer
     /// </remarks>
     public class RegexSyslogMessageParser : ISyslogMessageParser
     {
-        private const char ByteOrderMark = '\uFEFF';
         private const string TimestampPattern = @"\d{4}(-\d{2}){2}(T(\d{2})(:\d{2}){2}(\.[0-9]+)?)?(Z|[+-]\d{2}:\d{2})?";
+        private const string StructuredDataElementParameterPattern = @"(?<Parameters>(?<Key>\w+)=""(?<Value>\w+)""\s?)+";
+        private const string StructuredDataElementPattern = @"(?<StructuredDataElementId>.+?)\s" + StructuredDataElementParameterPattern;
+        internal const string StructuredDataPattern = @"(\[(?<StructuredDataElement>" + StructuredDataElementPattern + @")\])+";
 
-        private static readonly string StructuredDataElementParameterPattern = $@"(?<{nameof(StructuredDataElement.Parameters)}>(?<Key>\w+)=""(?<Value>\w+)""\s?)+";
-        private static readonly string StructuredDataElementPattern = $@"(?<{nameof(StructuredDataElement.StructuredDataElementId)}>.+?)\s{StructuredDataElementParameterPattern}";
-        internal static readonly string StructuredDataPattern = $@"(\[(?<{nameof(StructuredDataElement)}>{StructuredDataElementPattern})\])+";
-        internal const RegexOptions Flags = RegexOptions.Compiled | RegexOptions.Singleline | RegexOptions.IgnorePatternWhitespace;
-
-        private static readonly string MessagePattern = $@"
-^(?<{nameof(SyslogMessage.Header)}>
-    <(?<{nameof(Header.Priority)}>\d{{1,3}})>
-    (?<{nameof(Header.Version)}>\d{{1,2}})?\s
-    (\0|(?<{nameof(Header.EventTime)}>{TimestampPattern}))\s
-    (\0|(?<{nameof(Header.Hostname)}>[^\s]+))\s
-    (\0|(?<{nameof(Header.AppName)}>[^\s]+))\s
-    (\0|(?<{nameof(Header.ProcessId)}>[^\s]+))\s
-    (\0|(?<{nameof(Header.MessageId)}>[^\s]+))\s
+        private const string MessagePattern = @"
+^(?<Header>
+    <(?<Priority>\d{1,3})>
+    (?<Version>\d{1,2})?\s
+    (\0|(?<EventTime>" + TimestampPattern + @"))\s
+    (\0|(?<Hostname>[^\s]+))\s
+    (\0|(?<AppName>[^\s]+))\s
+    (\0|(?<ProcessId>[^\s]+))\s
+    (\0|(?<MessageId>[^\s]+))\s
 )
-(\0|
-    {StructuredDataPattern}
-)(\s|$)
-(?<{nameof(SyslogMessage.Message)}>.*)$";
+(\0|"+ StructuredDataPattern + @")(\s|$)
+(?<Message>.*)$";
 
         internal Regex SyslogFormatRegex { get; }
         internal Regex StructuredDataElementRegex { get; }
         internal Regex StructuredDataElementKeyValueRegex { get; }
+        internal const RegexOptions Flags = RegexOptions.Compiled | RegexOptions.Singleline | RegexOptions.IgnorePatternWhitespace;
 
         public RegexSyslogMessageParser() : this(TimeSpan.FromSeconds(1)) { }
 
@@ -66,7 +62,7 @@ namespace SharpSyslogServer
             var match = SyslogFormatRegex.Match(messageString);
             if (!match.Success) throw new InvalidOperationException($"Invalid syslog Message '{messageString}' - It doesn't match Regular Expression: {MessagePattern}");
 
-            var headerGroup = match.Groups[nameof(SyslogMessage.Header)];
+            var headerGroup = match.Groups["Header"];
             if (!headerGroup.Success) throw new InvalidOperationException("Message doesn't have a Header");
 
             return new SyslogMessage
@@ -79,7 +75,7 @@ namespace SharpSyslogServer
 
         internal IEnumerable<StructuredDataElement> ParseStructuredData(Match messageMatch)
         {
-            var m = messageMatch.Groups[nameof(StructuredDataElement)];
+            var m = messageMatch.Groups["StructuredDataElement"];
             if (!m.Success)
                 yield break;
 
@@ -91,7 +87,7 @@ namespace SharpSyslogServer
             }
         }
 
-        internal StructuredDataElement ParseStructuredDataElement(string structuredDataElement)
+        private StructuredDataElement ParseStructuredDataElement(string structuredDataElement)
         {
             var elementMatch = StructuredDataElementRegex.Match(structuredDataElement);
             if (!elementMatch.Success)
@@ -126,7 +122,7 @@ namespace SharpSyslogServer
         {
             var header = new Header();
 
-            ParseSuccessGroup(match.Groups[nameof(Header.Priority)],
+            ParseSuccessGroup(match.Groups["Priority"],
                 (double priorityNumber) =>
                 {
                     if (priorityNumber < 0 || priorityNumber > 191)
@@ -137,12 +133,12 @@ namespace SharpSyslogServer
                         (Severity)(priorityNumber % 8));
                 });
 
-            ParseSuccessGroup(match.Groups[nameof(Header.EventTime)], s => header.EventTime = s);
-            ParseSuccessGroup(match.Groups[nameof(Header.Version)], s => header.Version = s);
-            ParseSuccessGroup(match.Groups[nameof(Header.Hostname)], s => header.Hostname = s);
-            ParseSuccessGroup(match.Groups[nameof(Header.AppName)], s => header.AppName = s);
-            ParseSuccessGroup(match.Groups[nameof(Header.MessageId)], s => header.MessageId = s);
-            ParseSuccessGroup(match.Groups[nameof(Header.ProcessId)], s => header.ProcessId = s);
+            ParseSuccessGroup(match.Groups["EventTime"], s => header.EventTime = s);
+            ParseSuccessGroup(match.Groups["Version"], s => header.Version = s);
+            ParseSuccessGroup(match.Groups["Hostname"], s => header.Hostname = s);
+            ParseSuccessGroup(match.Groups["AppName"], s => header.AppName = s);
+            ParseSuccessGroup(match.Groups["MessageId"], s => header.MessageId = s);
+            ParseSuccessGroup(match.Groups["ProcessId"], s => header.ProcessId = s);
 
             return header;
         }
@@ -150,8 +146,8 @@ namespace SharpSyslogServer
         private string ParseMessage(Match match)
         {
             string message = null;
-            ParseSuccessGroup(match.Groups[nameof(SyslogMessage.Message)], s => message = s);
-            message = message?.TrimStart(ByteOrderMark, '\0');
+            ParseSuccessGroup(match.Groups["Message"], s => message = s);
+            message = message?.TrimStart('\uFEFF', '\0');
             return string.IsNullOrWhiteSpace(message)
                 ? null
                 : message;
