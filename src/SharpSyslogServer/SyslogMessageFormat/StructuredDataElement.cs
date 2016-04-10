@@ -19,7 +19,7 @@ namespace SharpSyslogServer.SyslogMessageFormat
         /// Key: 1*32PRINTUSASCII; except '=', SP, ']', %d34(")
         /// Value: UTF-8-STRING ; characters '"', '\' and ; ']' MUST be escaped.
         /// </remarks>
-        public Dictionary<string, string> Parameters { get; set; }
+        public ICollection<KeyValuePair<string, string>> Parameters { get; set; }
 
         public bool Equals(StructuredDataElement other)
         {
