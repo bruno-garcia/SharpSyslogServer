@@ -4,6 +4,9 @@ using System.Linq;
 
 namespace SharpSyslogServer.SyslogMessageFormat
 {
+    /// <summary>
+    /// An immutable, IEquatable, RFC 5424 Syslog Message Structured Data Element
+    /// </summary>
     public sealed class StructuredDataElement : IEquatable<StructuredDataElement>
     {
         /// <summary>

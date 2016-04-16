@@ -8,13 +8,13 @@ using SharpSyslogServer.SyslogMessageFormat;
 namespace SharpSyslogServer
 {
     /// <summary>
-    /// Parses a syslog message using Regex
+    /// Regex based RFC 5424 Syslog Message Parser
     /// </summary>
     /// <remarks>
-    /// Will decode the whole raw message using UTF8 and use Regex to find the fields as per RFC 5424 specs
+    /// Will decode the whole raw message using UTF8 and use Regex groups to extract the fields as per RFC 5424 specs
     /// https://tools.ietf.org/html/rfc5424#section-6
     /// </remarks>
-    public class RegexSyslogMessageParser : ISyslogMessageParser
+    public sealed class RegexSyslogMessageParser : ISyslogMessageParser
     {
         private const string TimestampPattern = @"\d{4}(-\d{2}){2}(T(\d{2})(:\d{2}){2}(\.[0-9]+)?)?(Z|[+-]\d{2}:\d{2})?";
         private const string StructuredDataElementParameterPattern = @"(?<Parameters>(?<Key>\w+)=""(?<Value>\w+)""\s?)+";
@@ -25,25 +25,26 @@ namespace SharpSyslogServer
 ^(?<Header>
     <(?<Priority>\d{1,3})>
     (?<Version>\d{1,2})?\s
-    (\0|(?<EventTime>" + TimestampPattern + @"))\s
-    (\0|(?<Hostname>[^\s]+))\s
-    (\0|(?<AppName>[^\s]+))\s
-    (\0|(?<ProcessId>[^\s]+))\s
-    (\0|(?<MessageId>[^\s]+))\s
+    (-|(?<EventTime>" + TimestampPattern + @"))\s
+    (-|(?<Hostname>[^\s]+))\s
+    (-|(?<AppName>[^\s]+))\s
+    (-|(?<ProcessId>[^\s]+))\s
+    (-|(?<MessageId>[^\s]+))\s
 )
-(\0|" + StructuredDataPattern + @")(\s|$)
+(-|" + StructuredDataPattern + @")(\s|$)
 (?<Message>.*)$";
 
-        internal Regex SyslogFormatRegex { get; }
-        internal Regex StructuredDataElementRegex { get; }
-        internal Regex StructuredDataElementKeyValueRegex { get; }
+        private Regex SyslogFormatRegex { get; }
+        private Regex StructuredDataElementRegex { get; }
+        private Regex StructuredDataElementKeyValueRegex { get; }
+        private readonly Func<byte[], string> _decoder = Encoding.UTF8.GetString;
+
         internal const RegexOptions Flags = RegexOptions.Compiled | RegexOptions.Singleline | RegexOptions.IgnorePatternWhitespace;
 
         public RegexSyslogMessageParser() : this(TimeSpan.FromSeconds(1)) { }
 
         public RegexSyslogMessageParser(TimeSpan regexTimeout)
         {
-
             SyslogFormatRegex = new Regex(MessagePattern, Flags, regexTimeout);
             StructuredDataElementRegex = new Regex(StructuredDataElementPattern, Flags, regexTimeout);
             StructuredDataElementKeyValueRegex = new Regex(StructuredDataElementParameterPattern, Flags, regexTimeout);
@@ -52,23 +53,47 @@ namespace SharpSyslogServer
         public SyslogMessage Parse(byte[] payload)
         {
             if (payload == null) throw new ArgumentNullException(nameof(payload));
-            var messageString = Encoding.UTF8.GetString(payload);
-            return Parse(messageString);
+
+            SyslogMessage syslogMessage = null;
+            string messageString = null;
+
+            var parses = TryParse(payload, ref syslogMessage, ref messageString);
+            if (!parses || syslogMessage == null)
+                throw new InvalidOperationException($"Payload of length: '{payload.Length}' is not a valid RFC 5424 syslog message. UTF8 string: '{messageString}'");
+
+            return syslogMessage;
         }
 
-        internal SyslogMessage Parse(string messageString)
+        public bool TryParse(byte[] payload, out SyslogMessage syslogMessage)
         {
-            var match = SyslogFormatRegex.Match(messageString);
-            if (!match.Success) throw new InvalidOperationException($"Invalid syslog Message '{messageString}' - It doesn't match Regular Expression: {MessagePattern}");
+            syslogMessage = null;
+            if (payload == null)
+                return false;
 
-            var headerGroup = match.Groups["Header"];
-            if (!headerGroup.Success) throw new InvalidOperationException("Message doesn't have a Header");
+            string messageString = null;
+            return TryParse(payload, ref syslogMessage, ref messageString);
+        }
 
+        private bool TryParse(byte[] payload, ref SyslogMessage syslogMessage, ref string messageString)
+        {
+            if (payload == null)
+                return false;
+
+            messageString = _decoder(payload);
+            var matchMessage = SyslogFormatRegex.Match(messageString);
+            if (!matchMessage.Success)
+                return false;
+
+            syslogMessage = Parse(matchMessage, false);
+            return true;
+        }
+
+        private SyslogMessage Parse(Match matchMessage, bool throwOnInvalidPriority)
+        {
             return new SyslogMessage(
-                ParseHeader(match),
-                ParseStructuredData(match).ToList(),
-                ParseMessage(match)
-                );
+                ParseHeader(matchMessage, throwOnInvalidPriority),
+                ParseStructuredData(matchMessage).ToList(),
+                ParseMessage(matchMessage));
         }
 
         internal IEnumerable<StructuredDataElement> ParseStructuredData(Match messageMatch)
@@ -105,11 +130,16 @@ namespace SharpSyslogServer
             return new KeyValuePair<string, string>(keyValueMatch.Groups["Key"].Value, keyValueMatch.Groups["Value"].Value);
         }
 
-        private Header ParseHeader(Match match)
+        private Header ParseHeader(Match match, bool throwOnInvalidPriority)
         {
             var priorityNumber = match.ParseSuccessfulDouble("Priority");
             if (!priorityNumber.HasValue || priorityNumber < 0 || priorityNumber > 191)
-                throw new Exception($"Invalid Priority value: {priorityNumber}");
+            {
+                if (throwOnInvalidPriority)
+                    throw new InvalidOperationException($"Invalid Priority value: '{priorityNumber}'");
+
+                return new Header();
+            }
 
             return new Header(
                 new Priority(
@@ -130,7 +160,7 @@ namespace SharpSyslogServer
 
             var value = match.GroupSuccessValue("Message");
 
-            var message = value?.TrimStart('\uFEFF', '\0');
+            var message = value?.TrimStart('\uFEFF', '-');
             return string.IsNullOrWhiteSpace(message)
                 ? null
                 : message;

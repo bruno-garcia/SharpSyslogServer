@@ -12,9 +12,9 @@ using Xunit;
 
 namespace SharpSyslogServerTests
 {
-    public class UdpSyslogServerTests
+    public sealed class UdpSyslogServerTests
     {
-        private class Fixture
+        private sealed class Fixture
         {
             public Mock<IRawMessageHandler> SyslogMessageHandlerMock { get; set; } = new Mock<IRawMessageHandler>();
             public Mock<IUdpClient> UpdClient { get; } = new Mock<IUdpClient>();
@@ -84,15 +84,16 @@ namespace SharpSyslogServerTests
         public async Task Start_CancelledToken_DoesNotStartReceivingData()
         {
             var source = new CancellationTokenSource();
-            _fixture.UpdClientFactoryMock.Setup(f => f()).Returns(_fixture.UpdClient.Object).Callback(source.Cancel);
+            source.Cancel();
+            _fixture.UpdClientFactoryMock.Setup(f => f()).Returns(_fixture.UpdClient.Object);
 
             var target = _fixture.GetSut();
-            await Assert.ThrowsAsync<OperationCanceledException>(async () =>
+            await Assert.ThrowsAsync<TaskCanceledException>(async () =>
             {
                 await target.Start(source.Token);
             });
 
-            _fixture.UpdClientFactoryMock.Verify(f => f(), Times.Once);
+            _fixture.UpdClientFactoryMock.Verify(f => f(), Times.Never);
             _fixture.UpdClient.Verify(u => u.ReceiveAsync(), Times.Never);
         }
 

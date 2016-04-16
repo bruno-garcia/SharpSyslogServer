@@ -7,6 +7,9 @@ namespace SharpSyslogServer.SyslogMessageFormat
     /// <summary>
     /// A Syslog Message as per RFC 5424
     /// </summary>
+    /// <remarks>
+    /// Immutable, Equatable Syslog Message
+    /// </remarks>
     public class SyslogMessage : IEquatable<SyslogMessage>
     {
         /// <summary>
@@ -23,6 +26,12 @@ namespace SharpSyslogServer.SyslogMessageFormat
         /// </summary>
         public string Message { get; }
 
+        /// <summary>
+        /// Creates an Syslog Message
+        /// </summary>
+        /// <param name="header">The message header</param>
+        /// <param name="structuredData">The optional Structure Data segment</param>
+        /// <param name="message">The optional Message segment</param>
         public SyslogMessage(Header header, IReadOnlyCollection<StructuredDataElement> structuredData = null, string message = null)
         {
             Header = header;

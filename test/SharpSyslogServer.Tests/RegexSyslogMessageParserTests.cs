@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Text;
 using System.Text.RegularExpressions;
 using SharpSyslogServer;
 using SharpSyslogServer.SyslogMessageFormat;
@@ -8,25 +9,55 @@ using Xunit;
 
 namespace SharpSyslogServerTests
 {
-    public partial class RegexSyslogMessageParserTests
+    public sealed partial class RegexSyslogMessageParserTests
     {
         [Theory]
         [MemberData(nameof(GetSampleValidMessages))]
         public void Parse_ValidMessage_ParsesSyslogMessage(SampleMessage testCase)
         {
             var target = new RegexSyslogMessageParser();
-            var actualMessage = target.Parse(testCase.RawMessage);
+            var actualMessage = target.Parse(testCase.GetMessageBytes());
 
             AssertEqual(testCase.ExpectedMessage, actualMessage);
         }
 
         [Theory]
-        [MemberData(nameof(GetSampleValidDateTime))]
-        public void Parse_ValidTimestamp_ParsesDateTimeOffset(SampleTimestamp testCase)
+        [MemberData(nameof(GetSampleValidMessages))]
+        public void TryParse_ValidMessage_ParsesSyslogMessage(SampleMessage testCase)
         {
-            DateTimeOffset actual;
-            Assert.True(MatchExtensions.TryParseTimestamp(testCase.RawTimestamp, out actual));
-            Assert.Equal(testCase.ExpectedDateTimeOffset, actual);
+            var target = new RegexSyslogMessageParser();
+            SyslogMessage actualMessage;
+
+            Assert.True(target.TryParse(testCase.GetMessageBytes(), out actualMessage));
+
+            AssertEqual(testCase.ExpectedMessage, actualMessage);
+        }
+
+        [Fact]
+        public void Parse_InvalidMessage_ThrowsException()
+        {
+            var target = new RegexSyslogMessageParser();
+            Assert.Throws<InvalidOperationException>(() => target.Parse(Encoding.UTF8.GetBytes("Not a valid message")));
+        }
+
+        [Fact]
+        public void TryParse_InvalidMessage_ReturnsFalse()
+        {
+            var target = new RegexSyslogMessageParser();
+
+            SyslogMessage syslogMessage;
+            Assert.False(target.TryParse(Encoding.UTF8.GetBytes("Not a valid message"), out syslogMessage));
+            Assert.Null(syslogMessage);
+        }
+
+        [Fact]
+        public void TryParse_NullMessage_ReturnsFalse()
+        {
+            var target = new RegexSyslogMessageParser();
+
+            SyslogMessage syslogMessage;
+            Assert.False(target.TryParse(null, out syslogMessage));
+            Assert.Null(syslogMessage);
         }
 
         [Theory]
@@ -62,7 +93,7 @@ namespace SharpSyslogServerTests
         }
 
         private static void AssertEqual(
-            IReadOnlyCollection<StructuredDataElement> expected, 
+            IReadOnlyCollection<StructuredDataElement> expected,
             IReadOnlyCollection<StructuredDataElement> actual)
         {
             Assert.Equal(expected.Count, actual.Count);

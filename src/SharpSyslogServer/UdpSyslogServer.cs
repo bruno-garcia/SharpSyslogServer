@@ -39,18 +39,16 @@ namespace SharpSyslogServer
             {
                 using (var udpClient = _updClientFactory())
                 {
-                    do
+                    while (!token.IsCancellationRequested)
                     {
-                        token.ThrowIfCancellationRequested();
-
                         var received = await udpClient.ReceiveAsync()
                             .WithCancellation(token)
                             .ConfigureAwait(false);
 
                         _rawMessageHandler.Handle(
                             new RawMessage(received.RemoteEndPoint, received.Buffer, _nowFunc()));
-
-                    } while (!token.IsCancellationRequested);
+                    }
+                    token.ThrowIfCancellationRequested();
                 }
             }, token);
         }

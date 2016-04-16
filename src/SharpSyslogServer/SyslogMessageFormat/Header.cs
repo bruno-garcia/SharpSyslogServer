@@ -5,7 +5,10 @@ namespace SharpSyslogServer.SyslogMessageFormat
     /// <summary>
     /// Syslog Message Header
     /// </summary>
-    /// <remarks>https://tools.ietf.org/html/rfc5424#section-6</remarks>
+    /// <remarks>
+    /// An immutable, IEquatable Syslog Message Header
+    /// https://tools.ietf.org/html/rfc5424#section-6
+    /// </remarks>
     public sealed class Header : IEquatable<Header>
     {
         /// <summary>

@@ -13,7 +13,7 @@ namespace SharpSyslogServer
         }
 
         /// <summary>
-        /// If groupName evaluates as Success, tries to parse the Value as Byte
+        /// If <paramref name="groupName"/> evaluates as Success, tries to parse the Value as Byte
         /// </summary>
         /// <param name="match">The Match containing the Group with name <paramref name="groupName"/></param>
         /// <param name="groupName">Name of the group to parse the value as Byte</param>

@@ -2,6 +2,7 @@
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
+using Microsoft.Extensions.Logging.Console;
 using SystemConsole = System.Console;
 
 namespace SharpSyslogServer.Console
@@ -10,19 +11,28 @@ namespace SharpSyslogServer.Console
     {
         public static int Main(string[] args)
         {
+            var loggerProvider = new ConsoleLoggerProvider((s, level) => true, false);
             var source = new CancellationTokenSource();
-            var sysLog = new UdpSyslogServer(new ConsoleRawMessageHandler());
 
-            var exitKeyTask = PressEscToExit();
+            var logger = new ConsoleMessageHandler();
+
+            var syslogServer = new UdpSyslogServer( // DI?
+                new LoggerRawMessageHandler(
+                    new ParserRawMessageHandler(
+                        new RegexSyslogMessageParser(TimeSpan.FromSeconds(1)),
+                        logger),
+                    loggerProvider.CreateLogger(nameof(LoggerRawMessageHandler)))
+                );
+
+            var exitKeyTask = PressEscToExit(logger);
 
             try
             {
-                var sysLogTask = sysLog.Start(source.Token);
-                Task.WaitAny(sysLogTask, exitKeyTask);
+                var syslogServerTask = syslogServer.Start(source.Token);
+                Task.WaitAny(syslogServerTask, exitKeyTask);
 
                 source.Cancel();
-                sysLogTask.Wait(TimeSpan.FromSeconds(3)); // throw syslogServer errors if any
-
+                syslogServerTask.Wait(TimeSpan.FromSeconds(3)); // throws errors from syslogServer, if any
                 return 0;
             }
             catch (AggregateException aggEx)
@@ -33,13 +43,31 @@ namespace SharpSyslogServer.Console
             }
         }
 
-        private static Task PressEscToExit()
+        private static Task PressEscToExit(ConsoleMessageHandler handler)
         {
             return Task.Run(() =>
             {
-                SystemConsole.WriteLine("Press ESC to exit");
-                while (SystemConsole.ReadKey(true).Key != ConsoleKey.Escape)
+                SystemConsole.WriteLine(@"Press:
+P to print processed message count
+C to clear screen
+R to reset counter
+ESC to exit");
+
+                ConsoleKey key;
+                while ((key = SystemConsole.ReadKey(true).Key) != ConsoleKey.Escape)
                 {
+                    switch (key)
+                    {
+                        case ConsoleKey.C:
+                            handler.Clear();
+                            continue;
+                        case ConsoleKey.R:
+                            handler.Reset();
+                            continue;
+                        case ConsoleKey.P:
+                            SystemConsole.WriteLine(handler.GetCount());
+                            continue;
+                    }
                 }
             });
         }
