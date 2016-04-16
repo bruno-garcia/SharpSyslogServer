@@ -26,8 +26,8 @@ namespace SharpSyslogServer
             catch (Exception ex)
             {
                 var encodedMessage = Convert.ToBase64String(rawMessage.Payload);
-                var format = "Failed to process message. Received {receivedAt}, RawMessage: {message}";
-                _logger.LogError(new FormattedLogValues(format, rawMessage.ReceivedAt, encodedMessage), ex);
+                var format = "Failed to process message: {message}";
+                _logger.LogError(new FormattedLogValues(format, encodedMessage), ex);
             }
         }
     }

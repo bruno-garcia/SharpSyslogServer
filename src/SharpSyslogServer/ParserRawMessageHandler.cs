@@ -23,8 +23,8 @@ namespace SharpSyslogServer
             if (rawMessage == null) throw new ArgumentNullException(nameof(rawMessage));
             if (rawMessage.Payload == null) throw new ArgumentException("Message Payload must be provided", nameof(rawMessage));
 
-            //var message = _syslogMessageParser.Parse(rawMessage.Payload);
-            _syslogMessageHandler.Handle(new SyslogMessage());
+            var message = _syslogMessageParser.Parse(rawMessage.Payload);
+            _syslogMessageHandler.Handle(message);
         }
     }
 }

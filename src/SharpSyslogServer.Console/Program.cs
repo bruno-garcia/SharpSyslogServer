@@ -3,6 +3,7 @@ using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Logging.Console;
+using SharpSyslogServer.Transport;
 using SystemConsole = System.Console;
 
 namespace SharpSyslogServer.Console

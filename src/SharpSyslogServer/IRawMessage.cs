@@ -9,7 +9,6 @@ namespace SharpSyslogServer
     public interface IRawMessage
     {
         byte[] Payload { get; }
-        DateTime ReceivedAt { get; }
         IPEndPoint RemoteEndPoint { get; }
     }
 }

@@ -8,6 +8,7 @@ using System.Threading.Tasks;
 using SharpSyslogServer;
 using SharpSyslogServer.Networking;
 using Moq;
+using SharpSyslogServer.Transport;
 using Xunit;
 
 namespace SharpSyslogServerTests
@@ -19,7 +20,6 @@ namespace SharpSyslogServerTests
             public Mock<IRawMessageHandler> SyslogMessageHandlerMock { get; set; } = new Mock<IRawMessageHandler>();
             public Mock<IUdpClient> UpdClient { get; } = new Mock<IUdpClient>();
             public Mock<Func<IUdpClient>> UpdClientFactoryMock { get; set; } = new Mock<Func<IUdpClient>>();
-            public Mock<Func<DateTime>> DateTimeFuncMock { get; set; } = new Mock<Func<DateTime>>();
             public UdpReceiveResult UdpReceiveResult { get; }
             public byte[] Payload { get; } = Encoding.UTF8.GetBytes("A message");
 
@@ -28,13 +28,12 @@ namespace SharpSyslogServerTests
                 UdpReceiveResult = new UdpReceiveResult(Payload, new IPEndPoint(IPAddress.Loopback, 0));
 
                 UpdClientFactoryMock.Setup(f => f()).Returns(UpdClient.Object);
-                DateTimeFuncMock.Setup(d => d()).Returns(() => DateTime.UtcNow);
                 UpdClient.Setup(u => u.ReceiveAsync()).ReturnsAsync(UdpReceiveResult);
             }
 
             public UdpSyslogServer GetSut()
             {
-                return new UdpSyslogServer(SyslogMessageHandlerMock?.Object, UpdClientFactoryMock?.Object, DateTimeFuncMock?.Object);
+                return new UdpSyslogServer(SyslogMessageHandlerMock?.Object, UpdClientFactoryMock?.Object);
             }
         }
 
@@ -45,13 +44,11 @@ namespace SharpSyslogServerTests
         {
             // Arrange
             var expectedDateTime = DateTime.UtcNow;
-            _fixture.DateTimeFuncMock.Setup(d => d()).Returns(() => expectedDateTime);
 
             var handleCalledEvent = new ManualResetEventSlim();
             _fixture.SyslogMessageHandlerMock
                 .Setup(h => h.Handle(It.Is<IRawMessage>(m => m.Payload == _fixture.Payload
-                                && Equals(m.RemoteEndPoint, _fixture.UdpReceiveResult.RemoteEndPoint)
-                                && m.ReceivedAt == expectedDateTime)))
+                                && Equals(m.RemoteEndPoint, _fixture.UdpReceiveResult.RemoteEndPoint))))
                 .Callback<IRawMessage>(_ => handleCalledEvent.Set());
 
             // Act
@@ -120,13 +117,6 @@ namespace SharpSyslogServerTests
         public void Constructor_NullUpdClientFactory_ThrowsArgumentNullException()
         {
             _fixture.UpdClientFactoryMock = null;
-            Assert.Throws<ArgumentNullException>(() => _fixture.GetSut());
-        }
-
-        [Fact]
-        public void Constructor_NullNowFunc_ThrowsArgumentNullException()
-        {
-            _fixture.DateTimeFuncMock = null;
             Assert.Throws<ArgumentNullException>(() => _fixture.GetSut());
         }
     }
