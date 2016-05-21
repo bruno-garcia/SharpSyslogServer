@@ -3,7 +3,8 @@
   "authors": [ "bruno" ],
   "description": "SharpSyslogServer.Console Console Application",
   "buildOptions": {
-    "emitEntryPoint": true
+    "emitEntryPoint": true,
+    "warningsAsErrors": true
   },
 
   "dependencies": {
