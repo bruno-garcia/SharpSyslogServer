@@ -1,4 +1,5 @@
 .vs
-artifacts
+bin/
+obj/
 *.user
 project.lock.json

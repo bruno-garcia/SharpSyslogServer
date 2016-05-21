@@ -1,6 +1,5 @@
 ﻿using System;
 using Microsoft.Extensions.Logging;
-using Microsoft.Extensions.Logging.Internal;
 
 namespace SharpSyslogServer
 {
@@ -27,7 +26,7 @@ namespace SharpSyslogServer
             {
                 var encodedMessage = Convert.ToBase64String(rawMessage.Payload);
                 var format = "Failed to process message: {message}";
-                _logger.LogError(new FormattedLogValues(format, encodedMessage), ex);
+                _logger.LogError(0, ex, format, encodedMessage);
             }
         }
     }

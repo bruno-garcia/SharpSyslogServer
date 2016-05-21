@@ -9,7 +9,7 @@ namespace SharpSyslogServer
         private readonly ISyslogMessageHandler _syslogMessageHandler;
 
         public ParserRawMessageHandler(
-            ISyslogMessageParser syslogMessageParser, 
+            ISyslogMessageParser syslogMessageParser,
             ISyslogMessageHandler syslogMessageHandler)
         {
             if (syslogMessageParser == null) throw new ArgumentNullException(nameof(syslogMessageParser));
