@@ -2,14 +2,11 @@ version: 1.0.{build}-alpha
 configuration: Release
 os: Visual Studio 2015
 install:
-- dnvm upgrade -r clr
-- dnu restore
-before_build:
-- nuget restore
+- dotnet restore
 build:
   verbosity: minimal
 test_script:
-- dnx -p test\SharpSyslogServer.Tests\project.json test
+- dotnet test SharpSyslogServer.Tests\project.json
 notifications:
 - provider: Webhook
   url: https://webhooks.gitter.im/e/de4ffe5142ae19358610
