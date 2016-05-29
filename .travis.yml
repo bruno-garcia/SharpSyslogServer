@@ -29,7 +29,7 @@ env:
 matrix:
   allow_failures:
     - env: CLI_VERSION=Latest
-	
+
 before_install:
   - if test "$TRAVIS_OS_NAME" == "osx"; then brew update; brew install openssl; brew link --force openssl; fi
   # Download script to install dotnet cli
