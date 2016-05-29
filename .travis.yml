@@ -61,3 +61,8 @@ after_success:
   # Run tests
   - cd ./SharpSyslogServer.Tests
   - dotnet test
+
+notifications:
+  webhooks:
+    urls:
+      - https://webhooks.gitter.im/e/a7b45ba20e162242e0c8
